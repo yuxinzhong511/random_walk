@@ -25,7 +25,6 @@
 GAP Benchmark Suite
 Class:  BuilderBase
 Author: Scott Beamer
-
 Given arguements from the command line (cli), returns a built graph
  - MakeGraph() will parse cli and obtain edgelist and call
    MakeGraphFromEL(edgelist) to perform actual graph construction
