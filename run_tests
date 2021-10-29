@@ -18,4 +18,4 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
-time ./build/random_walk -f $1
+time ./_build/random_walk -f $1
