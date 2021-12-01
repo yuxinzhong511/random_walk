@@ -1,0 +1,247 @@
+Read Time:           0.03556
+Build Time:          0.00198
+Reading hyperparameters config file add-hyperparams-filename...
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.16160
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13808
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13752
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13800
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13780
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.14310
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13824
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13742
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13753
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13704
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13710
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13774
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.14197
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13766
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13827
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13752
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13773
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13754
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.13779
+Computing random walk for 1405 nodes and 23540 edges.
+walk number: 0
+walk number: 1
+walk number: 2
+walk number: 3
+walk number: 4
+walk number: 5
+walk number: 6
+walk number: 7
+walk number: 8
+walk number: 9
+[TimingStat] Random walk time (s):                0.14252
+
+real	0m2.933s
+user	0m2.837s
+sys	0m0.013s
