@@ -5,6 +5,10 @@ if [ "$#" -ne 0 ]; then
     echo "Usage: ./build"
     exit 1
 fi
+# if [ "$#" -ne  2 ]; then 
+#     echo "Usage: ./build {filename.cu} {program_name}"
+#     exit 1
+# fi
 if [ ! -d "_build" ] 
 then
     mkdir _build

@@ -29,7 +29,7 @@ TempNodeVector FilterEdgesPostTime(
   TempNodeVector filtered_edges;
   for(auto v : g.out_neigh(src_node)) {
     if(v.w > src_time)
-      filtered_edges.push_back(std::make_pair(v, v.w));
+      filtered_edges.push_back(std::make_pair(v.v, v.w));
   }
   // Sort edges by timestamp?
   //std::sort(filtered_edges.begin(), filtered_edges.end(), SortByTime);

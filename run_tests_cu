@@ -14,7 +14,7 @@
 #SBATCH --gpus-per-node=1
 
 if [ "$#" -ne 1 ]; then
-    echo "Usage: sbatch run_tests [*.wel]"
+    echo "Usage: sbatch run_tests_cu [*.wel]"
     exit 1
 fi
 

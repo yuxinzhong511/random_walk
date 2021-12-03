@@ -1,4 +1,4 @@
-#include <wb.h>
+//#include <wb.h>
 #include <iostream>
 #include <vector>
 #include <math.h>
@@ -9,6 +9,7 @@
 #include <map>
 #include <fstream>
 #include <utility>
+#include <assert.h>
 #include "benchmark.h"
 //#include "thrust/device_vector.h"
 //#include "thrust/host_vector.h"
@@ -16,7 +17,7 @@
 //#include <curand_kernel.h>
 //#include <curand.h>
 
-typedef NodeWeight<NodeID, WeightT> WNode;
+typedef NodeWeight<int64_t, float> WNode;
 typedef EdgePair<NodeID, WNode> Edge;
 typedef pvector<Edge> EdgeList;
 
@@ -102,7 +103,7 @@ int walk_cnt)
   */
   double curCDF = 0, nextCDF = 0;
   int cnt = 0;
-  double random_number = rand_device[tid*4+walk_cnt-1];
+  double random_number = rand_device[tid*5+walk_cnt-1];
   for(auto it : prob_dist) {
       nextCDF += it;
       if(nextCDF >= random_number && curCDF <= random_number) {
@@ -138,159 +139,236 @@ __device__ float TimeBoundsDelta(int64_t node_id,
      // cnt++;
     }
     return (max_bound - min_bound);
-  }
-
-__device__ bool GetNeighborToWalk(
-  //const WGraph &g, 
-  NodeID src_node, 
-  WeightT src_time,
-  TNode& next_neighbor,
-  double * rand_device,
-  int tid,
-  int cnt,
-  int* rand_int_device,
-  int64_t * device_outdegree_list,
-  int64_t * device_v_list,
-  float * device_w_list,
-  int64_t * device_p_scan_list
-  ) 
-{
-  int neighborhood_size = device_outdegree_list[src_node];//g.out_degree(src_node);
-  if(neighborhood_size == 0) {
-    return false;
-  } else {
-    device_TempNodeVector filtered_edges = FilterEdgesPostTime(src_node, 
-    src_time, 
-    device_outdegree_list,
-    device_v_list,
-    device_w_list,
-    device_p_scan_list);
-    if(filtered_edges.empty()) {
-      return false;
-    }
-    if(filtered_edges.getSize() == 1) {
-      next_neighbor = filtered_edges[0];
-      return true;
-    } else {
-      device_DoubleVector prob_dist;
-      WeightT time_boundary_diff;
-      time_boundary_diff =TimeBoundsDelta(src_node,
-      device_outdegree_list,
-      device_v_list,
-      device_w_list,
-      device_p_scan_list);
-      if(time_boundary_diff == 0)
-      {
-        next_neighbor = filtered_edges[rand_int_device[tid*4+cnt-1] % filtered_edges.getSize()];
-        return true;
-      } else {
-        // TODO: parallelism?
-        for(auto it : filtered_edges) {
-          prob_dist.add(exp((float)(it.weight-src_time)/time_boundary_diff));
-        }
-        double exp_sum = 0;
-        for(int i = 0;i<prob_dist.getSize();i++){
-          exp_sum += prob_dist[i];
-        }
-        for (uint32_t i = 0; i < prob_dist.getSize(); ++i) {
-          prob_dist[i] = prob_dist[i] / exp_sum;
-        }
-        int neighbor_index = FindNeighborIdx(prob_dist,rand_device,rand_int_device,tid,cnt);
-        next_neighbor = filtered_edges[neighbor_index];
-        return true;
-      }
-    }
-  }
 }
 
-__device__ bool compute_walk_from_a_node(
-  //const WGraph& g, 
-  NodeID src_node,
-  WeightT prev_time_stamp, 
-  TNode& next_neighbor_ret, 
-  int max_walk_length, 
-  NodeID *local_array, 
-  int32_t pos,
-  double *rand_device,
-  int tid,
-  int cnt,
-  int * rand_int_device,
-  int64_t * device_outdegree_list,
-  int64_t * device_v_list,
-  float * device_w_list,
-  int64_t * device_p_scan_list) 
-{
-  TNode next_neighbor;
-  if(device_outdegree_list[src_node] != 0 && 
-    GetNeighborToWalk(
-    //g, 
-    src_node, 
-    prev_time_stamp,
-    next_neighbor,
-    rand_device,
-    tid,
-    cnt,
-    rand_int_device,
-    device_outdegree_list,
-    device_v_list,
-    device_w_list,
-    device_p_scan_list)) {
-    local_array[pos] = next_neighbor.id;
-    next_neighbor_ret = next_neighbor;
-    return true;
-  }
-  return false;
-}
+// __device__ bool GetNeighborToWalk(
+//   //const WGraph &g, 
+//   int64_t src_node, 
+//   float src_time,
+//   TNode& next_neighbor,
+//   double * rand_device,
+//   int tid,
+//   int cnt,
+//   int* rand_int_device,
+//   int64_t * device_outdegree_list,
+//   int64_t * device_v_list,
+//   float * device_w_list,
+//   int64_t * device_p_scan_list
+//   ) 
+// {
+//   int neighborhood_size = device_outdegree_list[src_node];//g.out_degree(src_node);
+//   if(neighborhood_size == 0) {
+//     return false;
+//   } else {
+//     device_TempNodeVector filtered_edges = FilterEdgesPostTime(
+//     src_node, 
+//     src_time, 
+//     device_outdegree_list,
+//     device_v_list,
+//     device_w_list,
+//     device_p_scan_list);
+//     if(filtered_edges.empty()) {
+//       return false;
+//     }
+//     if(filtered_edges.getSize() == 1) {
+//       next_neighbor = filtered_edges[0];
+//       next_neighbor.id = 0;
+//       return true;
+//     } else {
+//       device_DoubleVector prob_dist;
+//       WeightT time_boundary_diff;
+//       time_boundary_diff =TimeBoundsDelta(src_node,
+//       device_outdegree_list,
+//       device_v_list,
+//       device_w_list,
+//       device_p_scan_list);
+//       if(time_boundary_diff == 0)
+//       {
+//         next_neighbor = filtered_edges[rand_int_device[tid*5+cnt-1] % filtered_edges.getSize()];
+//         next_neighbor.id =0;
+//         return true;
+//       } else {
+//         // TODO: parallelism?
+//         for(auto it : filtered_edges) {
+//           prob_dist.add(exp((float)(it.weight-src_time)/time_boundary_diff));
+//         }
+//         double exp_sum = 0;
+//         for(int i = 0;i<prob_dist.getSize();i++){
+//           exp_sum += prob_dist[i];
+//         }
+//         for (uint32_t i = 0; i < prob_dist.getSize(); ++i) {
+//           prob_dist[i] = prob_dist[i] / exp_sum;
+//         }
+//         int neighbor_index = FindNeighborIdx(prob_dist,rand_device,rand_int_device,tid,cnt);
+//         next_neighbor = filtered_edges[neighbor_index];
+//         next_neighbor.id = 0;
+//         return true;
+//       }
+//     }
+//   }
+// }
+
+// __device__ bool compute_walk_from_a_node(
+//   //const WGraph& g, 
+//   int64_t src_node,
+//   float prev_time_stamp, 
+//   TNode& next_neighbor_ret, 
+//   int max_walk_length, 
+//   int64_t *local_array, 
+//   int32_t pos,
+//   double *rand_device,
+//   int tid,
+//   int cnt,
+//   int * rand_int_device,
+//   int64_t * device_outdegree_list,
+//   int64_t * device_v_list,
+//   float * device_w_list,
+//   int64_t * device_p_scan_list) 
+// {
+//   TNode next_neighbor ;
+//   if(device_outdegree_list[src_node] != 0 && 
+//     GetNeighborToWalk(
+//     //g, 
+//     src_node, 
+//     prev_time_stamp,
+//     next_neighbor,
+//     rand_device,
+//     tid,
+//     cnt,
+//     rand_int_device,
+//     device_outdegree_list,
+//     device_v_list,
+//     device_w_list,
+//     device_p_scan_list)) {
+//     // local_array[pos] = next_neighbor.id;
+//     next_neighbor_ret = next_neighbor;
+//     return true;
+//   }
+//   return false;
+// }
+void __global__ device_rwalk(
+	int m_walk_length,
+	int n_walks_per_node,
+	int total_num_nodes, 
+	// unsigned long long rnumber, 
+	int64_t * d_p_scan_list, 
+  int64_t * d_v_list, 
+  float * d_w_list, 
+  int64_t *d_global_walk,
+  double* rand_device,
+  int64_t * device_outdegree_list
+  ){
+		int64_t i = (blockIdx.x * blockDim.x) + threadIdx.x;
+		if(i >= total_num_nodes){
+			return;
+		}
+
+		long long int w;
+	    for(int w_n = 0; w_n < n_walks_per_node; ++w_n) {
+			d_global_walk[( total_num_nodes * w_n * m_walk_length) + ( i * m_walk_length ) + 0] = i;
+			//d_global_walk[( i * m_walk_length * n_walks_per_node ) + ( w_n * m_walk_length ) + 0] = i;
+			float prev_time_stamp = 0;
+			int64_t src_node = i;
+			int walk_cnt;
+			for(walk_cnt = 1; walk_cnt < m_walk_length; ++walk_cnt) {
+			  int valid_neighbor_cnt = 0;
+			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
+          w = d_p_scan_list[src_node] + idx;
+         // __syncthreads();
+				if(d_w_list[w] > prev_time_stamp){
+				  valid_neighbor_cnt++;
+				  break;
+				}
+			  }
+			  if(valid_neighbor_cnt == 0) {
+				break;
+			  }
+			  float min_bound = d_w_list[d_p_scan_list[src_node]];
+			  float max_bound = d_w_list[d_p_scan_list[src_node]];
+			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
+        w = d_p_scan_list[src_node] + idx;
+         // __syncthreads();
+				if(d_w_list[w] < min_bound)
+				  min_bound = d_w_list[w];
+				if(d_w_list[w] > max_bound)
+				  max_bound = d_w_list[w];
+			  }
+			  float time_boundary_diff = (max_bound - min_bound);
+
+			  if(time_boundary_diff < 0.0000001){
+				for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){ // We randomly pick 1 neighbor, we just pick the first
+					 w = d_p_scan_list[src_node] + idx;
+         // __syncthreads();
+          if(d_w_list[w] > prev_time_stamp){
+						d_global_walk[( total_num_nodes * w_n * m_walk_length) + ( i * m_walk_length ) + walk_cnt] = d_v_list[w];
+            //d_global_walk[( i * m_walk_length * n_walks_per_node ) + ( w_n * m_walk_length ) + walk_cnt] = d_v_list[w];
+						src_node = d_v_list[w];
+						prev_time_stamp = d_w_list[w];
+						break;
+					}
+				}
+				continue; 
+			  }
+			  
+			  double exp_summ = 0;            
+			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
+           w = d_p_scan_list[src_node] + idx;
+         // __syncthreads();
+				if(d_w_list[w] > prev_time_stamp){
+				  exp_summ += exp((float)(d_w_list[w]-prev_time_stamp)/time_boundary_diff);
+				}
+			  }
+
+			  double curCDF = 0, nextCDF = 0;
+        double random_number = rand_device[( i * (m_walk_length-1) * n_walks_per_node ) + ( w_n * (m_walk_length-1) ) + walk_cnt];
+			  //double random_number = rnumber * 1.0 / ULLONG_MAX;
+        //rnumber = rnumber * (unsigned long long)25214903917 + 11;   
+			  bool fall_through = false;
+			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
+          w = d_p_scan_list[src_node] + idx;
+				if(d_w_list[w] > prev_time_stamp){
+					nextCDF += (exp((float)(d_w_list[w]-prev_time_stamp)/time_boundary_diff) * 1.0 / exp_summ);
+					if(nextCDF >= random_number && curCDF <= random_number) {
+					  d_global_walk[( total_num_nodes * w_n * m_walk_length) + ( i * m_walk_length ) + walk_cnt] = d_v_list[w];
+					  //d_global_walk[( i * m_walk_length * n_walks_per_node ) + ( w_n * m_walk_length ) + walk_cnt] = d_v_list[w];
+					  src_node = d_v_list[w];
+					  prev_time_stamp = d_w_list[w];
+					  fall_through = true;
+					  break;
+				  } else {
+					  curCDF = nextCDF;
+				  }
+				}
+			  }
+			  if(!fall_through){
+				for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){ // This line should not be reached anyway (reaching this line means something is wrong). But just for testing, we randomly pick 1 neighbor, we just pick the first
+				   w = d_p_scan_list[src_node] + idx;
+          if(d_w_list[w] > prev_time_stamp){
+					d_global_walk[( total_num_nodes * w_n * m_walk_length) + ( i * m_walk_length ) + walk_cnt] = d_v_list[w];
+					//d_global_walk[( i * m_walk_length * n_walks_per_node ) + ( w_n * m_walk_length ) + walk_cnt] = d_v_list[w];
+					src_node = d_v_list[w];
+					prev_time_stamp = d_w_list[w];
+					break; 
+				  }
+				}
+			  }
+			}
+			if (walk_cnt != m_walk_length){	
+			  //d_global_walk[( total_num_nodes * w_n * m_walk_length) + ( i * m_walk_length ) + walk_cnt] = -1;
+        d_global_walk[( i * m_walk_length * n_walks_per_node ) + ( w_n * m_walk_length ) + walk_cnt] = -1;
+			}
+			
+		}
+	}
+
+ 
 
 
-__global__ void random_per_node(
-  int w_n, 
-  int num_nodes,
-  int max_walk_length,
-  int num_walks_per_node ,
-  NodeID *global_walk,  
-  double * rand_device, 
-  int * rand_int_device,
-  int64_t * device_outdegree_list,
-  int64_t *device_v_list,
-  float *device_w_list,
-  int64_t *  device_p_scan_list
-  ) {
-  //@@ 
-  int tid = blockDim.x * blockIdx.x + threadIdx.x;
-  NodeID *local_walk = 
-        global_walk + 
-        ( tid * max_walk_length * num_walks_per_node ) +
-        ( w_n * max_walk_length );
-      local_walk[0] = tid;
-      WeightT prev_time_stamp = 0;
-      NodeID next_neighbor = tid;
-      TNode next_neighbor_ret;
-      int walk_cnt;
-      for(walk_cnt = 1; walk_cnt < max_walk_length; ++walk_cnt) {
-        bool cont = compute_walk_from_a_node(
-          //g_device, 
-          next_neighbor, 
-          prev_time_stamp, 
-          next_neighbor_ret, 
-          max_walk_length, 
-          local_walk, 
-          walk_cnt,
-          rand_device,
-          tid,
-          walk_cnt,
-          rand_int_device,
-          device_outdegree_list,
-          device_v_list,
-          device_w_list,
-          device_p_scan_list
-        );
-        if(!cont) break;
-        next_neighbor = next_neighbor_ret.id;
-        prev_time_stamp = next_neighbor_ret.weight;
-      }
-      if (walk_cnt != max_walk_length)
-          local_walk[walk_cnt] = -1;
+#define cudaCheck(err) { \
+	if (err != cudaSuccess) { \
+		printf("CUDA error: %s: %s, line %d\n", cudaGetErrorString(err), __FILE__, __LINE__); \
+		assert(err == cudaSuccess); \
+	} \
 }
 
 void WriteWalkToAFile(
@@ -307,6 +385,7 @@ void WriteWalkToAFile(
         global_walk + 
         ( iter * max_walk * num_walks_per_node ) +
         ( w_n * max_walk );
+      // random_walk_file << local_walk[0] << " ";
       for (int i = 0; i < max_walk; i++) {
           if (local_walk[i] == -1)
             break;
@@ -324,14 +403,9 @@ void compute_random_walk_main(
   int max_walk_length,
   int num_walks_per_node,
   std::string walk_filename) {
-
+  max_walk_length++;
   NodeID *global_walk_device;
-  
-//   cudaMemcpyToSymbol(g_device,g,sizeof(WGraph));
 
-//   WGraph* g_device;
-  
-  // p_scan_list = new int64_t [num_of_nodes + 1];
   int64_t * p_scan_list = (int64_t *)malloc (sizeof(int64_t) * (g.num_nodes()+1));
   int64_t * outdegree_list=(int64_t *)malloc (sizeof(int64_t) * (g.num_nodes()));
   int64_t * v_list = (int64_t *)malloc (sizeof(int64_t) * g.num_edges());
@@ -341,11 +415,10 @@ void compute_random_walk_main(
   int64_t * device_v_list;
   float   * device_w_list;
   p_scan_list[0] = 0;
-  // v_list = new int64_t[num_of_edges];
-  // w_list = new float[num_of_edges];
-
+ 
   for(NodeID i = 0; i < g.num_nodes(); ++i) {
     p_scan_list[i + 1] = p_scan_list[i] + g.out_degree(i);
+    outdegree_list[i] = g.out_degree(i) + 0;
     int cnt = 0;
     for(auto v: g.out_neigh(i)){
       int64_t idx = p_scan_list[i] + cnt;
@@ -354,67 +427,65 @@ void compute_random_walk_main(
       cnt++;
     }
   }
-
-  cudaMalloc((void**)&device_outdegree_list,sizeof(int64_t) * g.num_nodes());
-  cudaMalloc((void**)&device_v_list,sizeof(int64_t) * g.num_edges());
-  cudaMalloc((void**)&device_w_list,sizeof(float) * g.num_edges());
-  cudaMalloc((void**)&device_p_scan_list,sizeof(int64_t) * (g.num_nodes()+1));
-  cudaMemcpy(device_outdegree_list,outdegree_list,sizeof(int64_t) * g.num_nodes(),cudaMemcpyHostToDevice);
-  cudaMemcpy(device_v_list,v_list,sizeof(int64_t) * g.num_nodes(),cudaMemcpyHostToDevice);
-  cudaMemcpy(device_w_list,w_list,sizeof(float) * g.num_nodes(),cudaMemcpyHostToDevice);
-  cudaMemcpy(device_p_scan_list,p_scan_list,sizeof(int64_t) * (g.num_nodes()+1),cudaMemcpyHostToDevice);
+  //  for(NodeID i = 0; i < g.num_nodes(); ++i) {
+  //    std::cout << p_scan_list[i] << " " << outdegree_list[i] <<std::endl ;
+  //  }
+  cudaCheck(cudaMalloc((void**)&device_outdegree_list,sizeof(int64_t) * g.num_nodes()));
+  cudaCheck(cudaMalloc((void**)&device_v_list,sizeof(int64_t) * g.num_edges()));
+  cudaCheck(cudaMalloc((void**)&device_w_list,sizeof(float) * g.num_edges()));
+  cudaCheck(cudaMalloc((void**)&device_p_scan_list,sizeof(int64_t) * (g.num_nodes()+1)));
+  cudaCheck(cudaMemcpy(device_outdegree_list,outdegree_list,sizeof(int64_t) * g.num_nodes(),cudaMemcpyHostToDevice));
+  cudaCheck(cudaMemcpy(device_v_list,v_list,sizeof(int64_t) * g.num_edges(),cudaMemcpyHostToDevice));
+  cudaCheck(cudaMemcpy(device_w_list,w_list,sizeof(float) * g.num_edges(),cudaMemcpyHostToDevice));
+  cudaCheck(cudaMemcpy(device_p_scan_list,p_scan_list,sizeof(int64_t) * (g.num_nodes()+1),cudaMemcpyHostToDevice));
 
   
 
 
   std::cout << "Computing random walk for " << g.num_nodes() << " nodes and " 
       << g.num_edges() << " edges." << std::endl;
-  max_walk_length++;
   NodeID *global_walk = new NodeID[g.num_nodes() * max_walk_length * num_walks_per_node];
+  //         
   Timer t;
   t.Start();
-  cudaMalloc((void **)&global_walk_device, sizeof(NodeID)*g.num_nodes() * max_walk_length * num_walks_per_node);
-  cudaMemcpy(global_walk_device, global_walk, sizeof(NodeID)*g.num_nodes() * max_walk_length * num_walks_per_node,
-             cudaMemcpyHostToDevice);
-//   cudaMalloc((void **)&g_device, sizeof(WGraph));
-//   cudaMemcpy(g_device,g,sizeof(WGraph),cudaMemcpyHostToDevice);
+  cudaMalloc((void **)&global_walk_device, sizeof(int64_t)* g.num_nodes() * max_walk_length * num_walks_per_node);
+
   dim3 blocksize(64,1,1);
   dim3 gridsize(ceil((float)g.num_nodes()/blocksize.x),1,1);
   
-  for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
-    std::cout << "walk number: " << w_n << std::endl;
-    double* rand_double = (double *)malloc(sizeof(double)*(max_walk_length-1)* g.num_nodes());
-    int* rand_int = (int*)malloc(sizeof(int) * (max_walk_length-1)*g.num_nodes());
-    for (int i=0; i < (max_walk_length-1)* g.num_nodes(); i++ ){
-        rand_double[i] =  RandomNumberGenerator();
-    }
-    for (int i=0; i < (max_walk_length-1)* g.num_nodes(); i++ ){
-         rand_int[i]= rand();
-    }
-    double * rand_device;
-    int    * rand_int_device;
-    cudaMalloc((void **)&rand_device,sizeof(double)*(max_walk_length-1)* g.num_nodes());
-    cudaMemcpy(rand_device,rand_double,sizeof(double)*(max_walk_length-1)* g.num_nodes(),cudaMemcpyHostToDevice);
-    cudaMalloc((void**)&rand_int_device,sizeof(int) * (max_walk_length-1)*g.num_nodes());
-    cudaMemcpy(rand_int_device,rand_int,sizeof(int)*(max_walk_length-1)* g.num_nodes(),cudaMemcpyHostToDevice);
-
-    random_per_node<<<gridsize,blocksize>>>(w_n,g.num_nodes(),
-    max_walk_length,
-    num_walks_per_node,
-    global_walk_device, 
-    rand_device,
-    rand_int,
-    device_outdegree_list,
-    device_v_list,
-    device_w_list,
-    device_p_scan_list);
-    cudaDeviceSynchronize();
-    cudaFree(rand_device);
-    cudaFree(rand_int_device);
-    free(rand_double);
-    free(rand_int);
+  
+    
+  // std::cout << "walk number: " << w_n << std::endl;
+  //++++++++++++++++++++++++++++++++++++++++++++++++rand number
+  double* rand_double = (double *)malloc(sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes());
+  for (int i=0; i < (max_walk_length-1)*num_walks_per_node* g.num_nodes(); i++ ){
+      rand_double[i] =  RandomNumberGenerator();
   }
-  cudaMemcpy(global_walk, global_walk_device, sizeof(NodeID)*g.num_nodes() * max_walk_length * num_walks_per_node, cudaMemcpyDeviceToHost);
+ 
+  double * rand_device;
+  
+  cudaCheck(cudaMalloc((void **)&rand_device,sizeof(double)*(max_walk_length-1)*num_walks_per_node* g.num_nodes()));
+  cudaCheck(cudaMemcpy(rand_device,rand_double,sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes(),cudaMemcpyHostToDevice));
+  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++rand number
+  
+  for(int i = 0; i < num_walks_per_node / 10; i++){
+  device_rwalk<<<gridsize,blocksize>>>(
+  max_walk_length,
+  num_walks_per_node,
+  g.num_nodes(),
+ // (unsigned long long) (RandomNumberGenerator() * 1.0 * ULLONG_MAX),
+  device_p_scan_list,
+  device_v_list,
+  device_w_list,
+  global_walk_device,
+  rand_device,
+  device_outdegree_list
+  );
+  cudaDeviceSynchronize();
+  cudaFree(rand_device);
+  free(rand_double);
+  }
+  cudaCheck(cudaMemcpy(global_walk, global_walk_device, sizeof(int64_t)*g.num_nodes() * max_walk_length * num_walks_per_node, cudaMemcpyDeviceToHost));
   cudaFree(global_walk_device);
   t.Stop();
   
@@ -454,17 +525,6 @@ int main(int argc, char **argv) {
       /* filename of random walk */ "out_random_walk_main.txt"
     );
   }
-  
-
-
-  wbTime_start(GPU, "Freeing GPU Memory");
-  
-  
-  wbTime_stop(GPU, "Freeing GPU Memory");
-
-  //wbSolution(args, hostOutput, dim);
-
-  //free(hostCSRCols);
   
 
   return 0;
