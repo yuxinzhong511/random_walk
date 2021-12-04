@@ -10,6 +10,7 @@
 #include <utility>
 #include <assert.h>
 #include "benchmark.h"
+#define MAX_EDGE 42
 
 
 typedef NodeWeight<int64_t, float> WNode;
@@ -23,6 +24,7 @@ static std::mt19937 rng(rd());
 // CAUTION: This will print the entire training/testing datasets
 //          Can fill up the terminal and slow down the program!
 bool print_datasets = false;
+
 
 
 
@@ -44,12 +46,13 @@ void __global__ device_rwalk(
 	int max_walk_length,
 	int num_walks_per_node,
 	int num_nodes, 
-	unsigned long long rnumber, 
+	//unsigned long long rnumber, 
 	int64_t * device_p_scan_list, 
   int64_t * device_v_list, 
   float * device_w_list, 
   int64_t *device_global_walk,
-  //double* rand_device,
+  double* rand_device,
+  int *device_rand_int,
   int w_n,
   int64_t * device_outdegree_list
   ){
@@ -57,9 +60,10 @@ void __global__ device_rwalk(
 		if(i >= num_nodes){
 			return;
 		}
+    int64_t valid_t_node[MAX_EDGE] = {0}; //++++++++++++++++++++++++
 
 		long long int w;
-	     //for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
+	    //for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
 			device_global_walk[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + 0] = i;
 			//device_global_walk[( i * max_walk_length * num_walks_per_node ) + ( w_n * max_walk_length ) + 0] = i;
 			float prev_time_stamp = 0;
@@ -69,10 +73,11 @@ void __global__ device_rwalk(
 			  int valid_neighbor_cnt = 0;
 			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
           w = device_p_scan_list[src_node] + idx;
-				if(device_w_list[w] > prev_time_stamp){
-				  valid_neighbor_cnt++;
-				  break;
-				}
+			  	if(device_w_list[w] > prev_time_stamp){
+          valid_t_node[valid_neighbor_cnt] = w;   //+++++++++++++++
+				  valid_neighbor_cnt++; //++++++++++++++++++++
+				  // break; //++++++++++++++++++++++++++++++
+				  }
 			  }
 			  if(valid_neighbor_cnt == 0) {
 				break;
@@ -87,33 +92,40 @@ void __global__ device_rwalk(
 				  max_bound = device_w_list[w];
 			  }
 			  float time_boundary_diff = (max_bound - min_bound);
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			  if(time_boundary_diff < 0.0000001){
-				for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){ // We randomly pick 1 neighbor, we just pick the first
-					 w = device_p_scan_list[src_node] + idx;
-          if(device_w_list[w] > prev_time_stamp){
-						device_global_walk[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + walk_cnt] = device_v_list[w];
-            //device_global_walk[( i * max_walk_length * num_walks_per_node ) + ( w_n * max_walk_length ) + walk_cnt] = device_v_list[w];
-						src_node = device_v_list[w];
-						prev_time_stamp = device_w_list[w];
-						break;
-					}
-				}
+				// for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){ // We randomly pick 1 neighbor, we just pick the first
+				// 	 w = device_p_scan_list[src_node] + idx;
+        //   if(device_w_list[w] > prev_time_stamp){
+				// 		device_global_walk[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + walk_cnt] = device_v_list[w];
+        //     //device_global_walk[( i * max_walk_length * num_walks_per_node ) + ( w_n * max_walk_length ) + walk_cnt] = device_v_list[w];
+				// 		src_node = device_v_list[w];
+				// 		prev_time_stamp = device_w_list[w];
+				// 		break;
+				// 	}
+				// }
+
+        //_______________________________________________________________________ added
+        int64_t rand_int = device_rand_int[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + walk_cnt];
+        device_global_walk[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + walk_cnt] = device_v_list[valid_t_node[rand_int % valid_neighbor_cnt]];
+        src_node = device_v_list[valid_t_node[rand_int % valid_neighbor_cnt]];
+        prev_time_stamp = device_w_list[valid_t_node[rand_int % valid_neighbor_cnt]];
+        //__________________________________________________________________________________
 				continue; 
 			  }
-			  
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			  
 			  double exp_sum = 0;            
 			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
-           w = device_p_scan_list[src_node] + idx;
-				if(device_w_list[w] > prev_time_stamp){
-				  exp_sum += exp((float)(device_w_list[w]-prev_time_stamp)/time_boundary_diff);
-				}
+          w = device_p_scan_list[src_node] + idx;
+				  if(device_w_list[w] > prev_time_stamp){
+				    exp_sum += exp((float)(device_w_list[w]-prev_time_stamp)/time_boundary_diff);
+			  	}
 			  }
 
 			  double curCDF = 0, nextCDF = 0;
-        //double random_number = rand_device[( i * (max_walk_length-1) * num_walks_per_node ) + ( w_n * (max_walk_length-1) ) + walk_cnt];
-			  double random_number = rnumber * 1.0 / ULLONG_MAX;
-        rnumber = rnumber * (unsigned long long)25214903917 + 11;   
+        double random_number = rand_device[( i * (max_walk_length-1) * num_walks_per_node ) + ( w_n * (max_walk_length-1) ) + walk_cnt];
+			  //double random_number = rnumber * 1.0 / ULLONG_MAX;
+        //rnumber = rnumber * (unsigned long long)25214903917 + 11;   
 			  bool fall_through = false;
 			  for(int64_t idx=0; idx < device_outdegree_list[src_node]; idx++){
           w = device_p_scan_list[src_node] + idx;
@@ -148,7 +160,7 @@ void __global__ device_rwalk(
 			  device_global_walk[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + walk_cnt] = -1;
         //device_global_walk[( i * max_walk_length * num_walks_per_node ) + ( w_n * max_walk_length ) + walk_cnt] = -1;
 			}
-			
+		
 		//}
 	}
 
@@ -192,7 +204,6 @@ void WriteWalkToAFile(
 }
 
 
-
 void compute_random_walk_main(
   WGraph &g, 
   int max_walk_length,
@@ -209,6 +220,7 @@ void compute_random_walk_main(
   int64_t * device_p_scan_list ;
   int64_t * device_v_list;
   float   * device_w_list;
+ 
   p_scan_list[0] = 0;
  
   for(NodeID i = 0; i < g.num_nodes(); ++i) {
@@ -249,46 +261,61 @@ void compute_random_walk_main(
   dim3 gridsize(ceil((float)g.num_nodes()/blocksize.x),1,1);
   
   
-  //++++++++++++++++++++++++++++++++++++++++++++++++rand number
-  // double* rand_double = (double *)malloc(sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes());
-  // for (int i=0; i < (max_walk_length-1)*num_walks_per_node* g.num_nodes(); i++ ){
-  //     rand_double[i] =  RandomNumberGenerator();
-  // }
- 
-  // double * rand_device;
-  
-  // cudaCheck(cudaMalloc((void **)&rand_device,sizeof(double)*(max_walk_length-1)*num_walks_per_node* g.num_nodes()));
-  // cudaCheck(cudaMemcpy(rand_device,rand_double,sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes(),cudaMemcpyHostToDevice));
-  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++rand number
-  
-  for(int i = 0; i < num_walks_per_node / 10; i++){
-    for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
-    device_rwalk<<<gridsize,blocksize>>>(
-    max_walk_length,
-    num_walks_per_node,
-    g.num_nodes(),
-  (unsigned long long) (RandomNumberGenerator() * 1.0 * ULLONG_MAX),
-    device_p_scan_list,
-    device_v_list,
-    device_w_list,
-    global_walk_device,
-    //rand_device,
-    w_n,
-    device_outdegree_list
-    );
-    cudaDeviceSynchronize();
-  // cudaFree(rand_device);
-  // free(rand_double);
-    }
+  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++rand number
+  double* rand_double = (double *)malloc(sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes());
+  for (int i=0; i < (max_walk_length-1)*num_walks_per_node* g.num_nodes(); i++ ){
+      rand_double[i] =  RandomNumberGenerator();
   }
+  double * rand_device;
+  cudaCheck(cudaMalloc((void **)&rand_device,sizeof(double)*(max_walk_length-1)*num_walks_per_node* g.num_nodes()));
+  cudaCheck(cudaMemcpy(rand_device,rand_double,sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes(),cudaMemcpyHostToDevice));
+  
+  
+  int* rand_int = (int *)malloc(sizeof(double)*num_walks_per_node*(max_walk_length-1)* g.num_nodes());
+  for(int i = 0; i < (max_walk_length-1)*num_walks_per_node* g.num_nodes(); i++ ) {
+     rand_int [i] = rand(); 
+  }
+
+  int* device_rand_int;
+  cudaCheck(cudaMalloc((void **)&device_rand_int,sizeof(int)*(max_walk_length-1)*num_walks_per_node* g.num_nodes()));
+  cudaCheck(cudaMemcpy (device_rand_int,rand_int,sizeof(int)*num_walks_per_node*(max_walk_length-1)* g.num_nodes(),cudaMemcpyHostToDevice));
+  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++rand number
+  for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
+  for(int i = 0; i < num_walks_per_node / 10; i++){
+  device_rwalk<<<gridsize,blocksize>>>(
+  max_walk_length,
+  num_walks_per_node,
+  g.num_nodes(),
+  //(unsigned long long) (RandomNumberGenerator() * 1.0 * ULLONG_MAX),
+  device_p_scan_list,
+  device_v_list,
+  device_w_list,
+  global_walk_device,
+  rand_device,
+  device_rand_int,
+  w_n,
+  device_outdegree_list
+  );
+  cudaDeviceSynchronize();
+ }
+
+}
+  cudaFree(rand_device);
+  free(rand_double);
+  cudaFree(device_rand_int);
+  free(rand_int);
+ 
   cudaCheck(cudaMemcpy(global_walk, global_walk_device, sizeof(int64_t)*g.num_nodes() * max_walk_length * num_walks_per_node, cudaMemcpyDeviceToHost));
   cudaFree(global_walk_device);
   t.Stop();
   
   PrintStep("[TimingStat] Random walk time (s):", t.Seconds());
   WriteWalkToAFile(global_walk, g.num_nodes(), 
-    max_walk_length, num_walks_per_node, walk_filename);
+  max_walk_length, num_walks_per_node, walk_filename);
   delete[] global_walk;
+  delete[] p_scan_list;
+  delete[] w_list;
+  delete[] v_list;
 }
 
 int main(int argc, char **argv) {
