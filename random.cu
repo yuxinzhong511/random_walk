@@ -50,6 +50,7 @@ void __global__ device_rwalk(
   float * device_w_list, 
   int64_t *device_global_walk,
   //double* rand_device,
+  int w_n,
   int64_t * device_outdegree_list
   ){
 		int64_t i = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -58,7 +59,7 @@ void __global__ device_rwalk(
 		}
 
 		long long int w;
-	    for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
+	     //for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
 			device_global_walk[( num_nodes * w_n * max_walk_length) + ( i * max_walk_length ) + 0] = i;
 			//device_global_walk[( i * max_walk_length * num_walks_per_node ) + ( w_n * max_walk_length ) + 0] = i;
 			float prev_time_stamp = 0;
@@ -148,7 +149,7 @@ void __global__ device_rwalk(
         //device_global_walk[( i * max_walk_length * num_walks_per_node ) + ( w_n * max_walk_length ) + walk_cnt] = -1;
 			}
 			
-		}
+		//}
 	}
 
  
@@ -189,6 +190,7 @@ void WriteWalkToAFile(
   }
   random_walk_file.close();
 }
+
 
 
 void compute_random_walk_main(
@@ -260,21 +262,24 @@ void compute_random_walk_main(
   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++rand number
   
   for(int i = 0; i < num_walks_per_node / 10; i++){
-  device_rwalk<<<gridsize,blocksize>>>(
-  max_walk_length,
-  num_walks_per_node,
-  g.num_nodes(),
- (unsigned long long) (RandomNumberGenerator() * 1.0 * ULLONG_MAX),
-  device_p_scan_list,
-  device_v_list,
-  device_w_list,
-  global_walk_device,
-  //rand_device,
-  device_outdegree_list
-  );
-  cudaDeviceSynchronize();
+    for(int w_n = 0; w_n < num_walks_per_node; ++w_n) {
+    device_rwalk<<<gridsize,blocksize>>>(
+    max_walk_length,
+    num_walks_per_node,
+    g.num_nodes(),
+  (unsigned long long) (RandomNumberGenerator() * 1.0 * ULLONG_MAX),
+    device_p_scan_list,
+    device_v_list,
+    device_w_list,
+    global_walk_device,
+    //rand_device,
+    w_n,
+    device_outdegree_list
+    );
+    cudaDeviceSynchronize();
   // cudaFree(rand_device);
   // free(rand_double);
+    }
   }
   cudaCheck(cudaMemcpy(global_walk, global_walk_device, sizeof(int64_t)*g.num_nodes() * max_walk_length * num_walks_per_node, cudaMemcpyDeviceToHost));
   cudaFree(global_walk_device);
